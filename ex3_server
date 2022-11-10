@@ -1,0 +1,73 @@
+#!/usr/bin/python2.7 -tt
+
+from socket import *
+import sys
+import random
+
+NOT_FOUND_RESPONSE = \
+    """HTTP/1.1 404 Not Found\r
+    Content-type: text/html\r
+    Content-length: 113\r
+    \r
+    <html><head><title>Not Found</title></head><body>\r
+    Sorry, the object you requested was not found.\r
+    </body></html>\r\n\r\n"""
+
+
+def get_port_number():
+    if (len(sys.argv) < 2):
+        PORT = 2400
+        #print("didn't get port as argument, use default port number:", PORT)
+    else:
+        PORT = int(sys.argv[1])
+        #print("chosen port number:", PORT)
+    return PORT
+
+
+def get_request(server_socket):
+    request = ''
+    while 1:
+        request += server_socket.recv(1024)
+        if request.count('\r\n\r\n') == 1:
+            break
+    return request
+
+
+def parse_request_and_send(request, server_socket, num_of_requests):
+    lines = request.split('\r\n')
+    is_relevant_request = False
+
+    try:
+        address = lines[0].split(' ')[1]
+        if address == '/counter':
+            is_relevant_request = True
+    except:
+        pass
+
+    response = NOT_FOUND_RESPONSE
+    if is_relevant_request:
+        num_of_requests += 1
+        response = "HTTP/1.0 200 OK\r\nContent-Type: text/html\r\nContent-Length: {length}\r\n\r\n{num_requests}\r\n\r\n".format(
+            length=len(str(num_of_requests)), num_requests=num_of_requests)
+
+    #print("server will send the folowing massege", response)
+    server_socket.send(response)
+    return num_of_requests
+
+
+def main():
+    BUFFER_SIZE = 1024
+    PORT = get_port_number()
+    server_socket = socket()
+    num_of_requests = 0
+    #print("socket opened successfully")
+    server_socket.connect(('localhost', PORT))
+    #print("waiting for message after connection succeed")
+    while True:
+        request = get_request(server_socket)
+        #print("got massege: ", request)
+        num_of_requests=parse_request_and_send(request, server_socket, num_of_requests)
+
+
+if __name__ == "__main__":
+    main()
